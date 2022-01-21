@@ -6,6 +6,4 @@ If you have questions, want to know more about this work, please contact Julia B
 
 You may use and borrow from this code base in accordance with the license below.
 
-
-
-This work is licensed under a 
+CC0 1.0 Universal
