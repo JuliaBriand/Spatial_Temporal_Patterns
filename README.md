@@ -1,4 +1,4 @@
-# Spatial_Temporal_Patterns
+# Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient
 
 Code corresponding to Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient: a 15-year study in the Caribbean
 
