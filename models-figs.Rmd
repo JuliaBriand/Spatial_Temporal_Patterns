@@ -78,24 +78,24 @@ t_tib$MRT <- as.factor(t_tib$MRT)
 
 ```{r}
 # Random Intercept
-c1 <- lme4::lmer(MDS1 ~ Year*MRT + (1|MRT/Site), data = c_tib)
-summary(c1)
-summary(as_lmerModLmerTest(c1))
+p1_c1 <- lme4::lmer(MDS1 ~ Year*MRT + (1|MRT/Site), data = c_tib)
+summary(p1_c1)
+summary(as_lmerModLmerTest(p1_c1))
 
 # No Interaction Term
-c2 <- lme4::lmer(MDS1 ~ Year+MRT + (1|MRT/Site), data = c_tib)
-summary(c2)
-summary(as_lmerModLmerTest(c2))
+p1_c2 <- lme4::lmer(MDS1 ~ Year+MRT + (1|MRT/Site), data = c_tib)
+summary(p1_c2)
+summary(as_lmerModLmerTest(p1_c2))
 
 # Anova
-anova(c1, c2)
+anova(p1_c1, p1_c2)
 
 #lme
-lmec1 <- lme(fixed = MDS1~Year*MRT, random = ~ 1|MRT/Site,data=c_tib,na.action=na.omit)
+p1_lmec1 <- lme(fixed = MDS1~Year*MRT, random = ~ 1|MRT/Site,data=c_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(c_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmec1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p1_lmec1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -109,30 +109,32 @@ p1_c <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)
   labs(x = "Year", y = "PCoA 1")+facet_wrap(~ MRT,scales='free') + ylim(-2.0, 2.0)+theme(legend.position = "none")
   
 ggsave("pcoa1_coral_mrt.pdf", height=7, width=7.17)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 # Benthic
 
 ```{r}
 # Random Intercept
-b1 <- lme4::lmer(MDS1 ~ Year*MRT + (1|MRT/Site), data = b_tib)
-summary(b1)
-summary(as_lmerModLmerTest(b1))
+p1_b1 <- lme4::lmer(MDS1 ~ Year*MRT + (1|MRT/Site), data = b_tib)
+summary(p1_b1)
+summary(as_lmerModLmerTest(p1_b1))
 
 # No Interaction Term
-b2 <- lme4::lmer(MDS1 ~ Year+MRT + (1|MRT/Site), data = b_tib)
-summary(b2)
-summary(as_lmerModLmerTest(b2))
+p1_b2 <- lme4::lmer(MDS1 ~ Year+MRT + (1|MRT/Site), data = b_tib)
+summary(p1_b2)
+summary(as_lmerModLmerTest(p1_b2))
 
 # Anova
-anova(b1, b2)
+anova(p1_b1, p1_b2)
 
 #lme
-lmeb1 <- lme(fixed = MDS1~Year*MRT, random = ~ 1|MRT/Site,data=b_tib,na.action=na.omit)
+p1_lmeb1 <- lme(fixed = MDS1~Year*MRT, random = ~ 1|MRT/Site,data=b_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(b_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmeb1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p1_lmeb1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -146,30 +148,32 @@ p1_b <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)
   facet_wrap(~ MRT,scales='free') + ylim(-2.0, 2.0) +theme(legend.position = "none")
 
 ggsave("pcoa1_benth_mrt.pdf", height=4.5, width=14)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 # Traits
 
 ```{r}
 # Random Intercept
-t1 <- lme4::lmer(Dim.1 ~ Year*MRT + (1|MRT/Site), data = t_tib)
-summary(t1)
-summary(as_lmerModLmerTest(t1))
+p1_t1 <- lme4::lmer(Dim.1 ~ Year*MRT + (1|MRT/Site), data = t_tib)
+summary(p1_t1)
+summary(as_lmerModLmerTest(p1_t1))
 
 # No Interaction Term
-t2 <- lme4::lmer(Dim.1 ~ Year+MRT + (1|MRT/Site), data = t_tib)
-summary(t2)
-summary(as_lmerModLmerTest(t2))
+p1_t2 <- lme4::lmer(Dim.1 ~ Year+MRT + (1|MRT/Site), data = t_tib)
+summary(p1_t2)
+summary(as_lmerModLmerTest(p1_t2))
 
 # Anova
-anova(t1, t2)
+anova(p1_t1, p1_t2)
 
 #lme
-lmet1 <- lme(fixed = Dim.1~Year*MRT, random = ~ 1|MRT/Site,data=t_tib,na.action=na.omit)
+p1_lmet1 <- lme(fixed = Dim.1~Year*MRT, random = ~ 1|MRT/Site,data=t_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(t_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmet1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p1_lmet1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -178,11 +182,17 @@ fitted_pred <- left_join(fitted_pred, t_tib)
 
 p1_t <- ggplot(fitted_pred, aes(Year, fit)) + geom_path(size = 0.8)+geom_point(aes(Year, Dim.1, color = Reef, shape = MRT),t_tib, size = 2.5)+geom_path(aes(Year, Dim.1, group= Site, color = Reef),t_tib[!is.na(t_tib$Dim.1),], size = 0.7)+
   geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5)+
-  ggthemes::theme_base() + scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + geom_path() + 
-  scale_color_manual(values=c("#FEB24C", "#FF4500")) + scale_shape_manual(values=c(15, 16, 17, 18)) + labs(x = "Year", y = "MFA 1")+
-  facet_wrap(~ MRT,scales='free') + ylim(-6.0, 6.0) +theme(legend.position = "none")
+  ggthemes::theme_base() + 
+  scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + geom_path() +
+  scale_color_manual(values=c("#FEB24C", "#FF4500")) + 
+  scale_shape_manual(values=c(15, 16, 17, 18)) + 
+  labs(x = "Year", y = "MFA 1") +
+  facet_wrap(~ MRT,scales='free') + 
+  ylim(-6.0, 6.0) +theme(legend.position = "none")
 
 ggsave("pcoa1_trait_mrt.pdf", height=7, width=7.17)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 ## PCOA2 Models
@@ -193,24 +203,24 @@ ggsave("pcoa1_trait_mrt.pdf", height=7, width=7.17)
 # Corals
 
 # Random Intercept
-c1 <- lme4::lmer(MDS2 ~ Year*MRT + (1|MRT/Site), data = c_tib)
-summary(c1)
-summary(as_lmerModLmerTest(c1))
+p2_c1 <- lme4::lmer(MDS2 ~ Year*MRT + (1|MRT/Site), data = c_tib)
+summary(p2_c1)
+summary(as_lmerModLmerTest(p2_c1))
 
 # No Interaction Term
-c2 <- lme4::lmer(MDS2 ~ Year+MRT + (1|MRT/Site), data = c_tib)
-summary(c2)
-summary(as_lmerModLmerTest(c2))
+p2_c2 <- lme4::lmer(MDS2 ~ Year+MRT + (1|MRT/Site), data = c_tib)
+summary(p2_c2)
+summary(as_lmerModLmerTest(p2_c2))
 
 # Anova
-anova(c1, c2)
+anova(p2_c1, p2_c2)
 
 #lme
-lmec1 <- lme(fixed = MDS2~Year*MRT, random = ~ 1|MRT/Site,data=c_tib,na.action=na.omit)
+p2_lmec1 <- lme(fixed = MDS2~Year*MRT, random = ~ 1|MRT/Site,data=c_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(c_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmec1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p2_lmec1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -223,30 +233,32 @@ p2_c <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)
   scale_color_manual(values=c("#FEB24C", "#FF4500")) + scale_shape_manual(values=c(15, 16, 17, 18)) +theme(legend.position = "none") + facet_wrap(~ MRT,scales='free') + ylim(-2.5, 2.5) 
 
 ggsave("pcoa2_coral_mrt.pdf", height=8.5, width=10.75)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 # Benthic
 
 ```{r}
 # Random Intercept
-b1 <- lme4::lmer(MDS2 ~ Year*MRT + (1|MRT/Site), data = b_tib)
-summary(b1)
-summary(as_lmerModLmerTest(b1))
+p2_b1 <- lme4::lmer(MDS2 ~ Year*MRT + (1|MRT/Site), data = b_tib)
+summary(p2_b1)
+summary(as_lmerModLmerTest(p2_b1))
 
 # No Interaction Term
-b2 <- lme4::lmer(MDS2 ~ Year+MRT + (1|MRT/Site), data = b_tib)
-summary(b2)
-summary(as_lmerModLmerTest(b2))
+p2_b2 <- lme4::lmer(MDS2 ~ Year+MRT + (1|MRT/Site), data = b_tib)
+summary(p2_b2)
+summary(as_lmerModLmerTest(p2_b2))
 
 # Anova
-anova(b1, b2)
+anova(p2_b1, p2_b2)
 
 #lme
-lmeb1 <- lme(fixed = MDS2~Year*MRT, random = ~ 1|MRT/Site,data=b_tib,na.action=na.omit)
+p2_lmeb1 <- lme(fixed = MDS2~Year*MRT, random = ~ 1|MRT/Site,data=b_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(b_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmeb1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p2_lmeb1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -254,36 +266,43 @@ fitted_pred<-newdata %>%
 fitted_pred <- left_join(fitted_pred, b_tib)
 
 p2_b <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)+geom_point(aes(Year, MDS2, color = Reef, shape = MRT),b_tib, size = 2.5)+geom_path(aes(Year, MDS2, group= Site, color = Reef),b_tib[!is.na(b_tib$MDS2),], size = 0.7)+
-  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5)+
-  ggthemes::theme_base() + labs(x = "Year", y = "PCoA 2")+scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + geom_path() + 
-  scale_color_manual(values=c("#FEB24C", "#FF4500")) + scale_shape_manual(values=c(15, 16, 17, 18)) +theme(legend.position = "none")+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5) +
+  ggthemes::theme_base() + 
+  labs(x = "Year", y = "PCoA 2") + 
+  scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + 
+  geom_path() + 
+  scale_color_manual(values=c("#FEB24C", "#FF4500")) + 
+  scale_shape_manual(values=c(15, 16, 17, 18)) +
+  theme(legend.position = "none")+
   facet_wrap(~ MRT,scales='free') + ylim(-2.0, 2.0) 
 
 ggsave("pcoa2_benth_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 # Traits
 
 ```{r}
 # Random Intercept
-t1 <- lme4::lmer(Dim.2 ~ Year*MRT + (1|MRT/Site), data = t_tib)
-summary(t1)
-summary(as_lmerModLmerTest(t1))
+p2_t1 <- lme4::lmer(Dim.2 ~ Year*MRT + (1|MRT/Site), data = t_tib)
+summary(p2_t1)
+summary(as_lmerModLmerTest(p2_t1))
 
 # No Interaction Term
-t2 <- lme4::lmer(Dim.2 ~ Year+MRT + (1|MRT/Site), data = t_tib)
-summary(t2)
-summary(as_lmerModLmerTest(t2))
+p2_t2 <- lme4::lmer(Dim.2 ~ Year+MRT + (1|MRT/Site), data = t_tib)
+summary(p2_t2)
+summary(as_lmerModLmerTest(p2_t2))
 
 # Anova
-anova(t1, t2)
+anova(p2_t1, p2_t2)
 
 #lme
-lmet1 <- lme(fixed = Dim.2~Year*MRT, random = ~ 1|MRT/Site,data=t_tib,na.action=na.omit)
+p2_lmet1 <- lme(fixed = Dim.2~Year*MRT, random = ~ 1|MRT/Site,data=t_tib,na.action=na.omit)
 
 # taxonomic c1
 newdata <- tidyr::expand(t_tib, nesting(MRT, Site), Year) 
-pred<-predict(lmet1, newdata, level=0, se.fit=T) # stick with just random intercept?
+pred<-predict(p2_lmet1, newdata, level=0, se.fit=T) 
 fitted_pred<-newdata %>%
   mutate(fit=pred$fit) %>%
   mutate(fit_se=pred$se.fit)
@@ -292,14 +311,23 @@ fitted_pred <- left_join(fitted_pred, t_tib)
 
 p2_t <- ggplot(fitted_pred, aes(Year, fit)) + geom_path(size = 0.8)+geom_point(aes(Year, Dim.2, color = Reef, shape = MRT),t_tib, size = 2.5)+geom_path(aes(Year, Dim.2, group= Site, color = Reef),t_tib[!is.na(t_tib$Dim.2),], size = 0.7)+
   geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5)+
-  ggthemes::theme_base() + labs(x = "Year", y = "MFA 2")+scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + geom_path() + 
-  scale_color_manual(values=c("#FEB24C", "#FF4500")) + scale_shape_manual(values=c(15, 16, 17, 18)) +theme(legend.position = "none")+
+  ggthemes::theme_base() + 
+  labs(x = "Year", y = "MFA 2")+
+  scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + 
+  geom_path() + 
+  scale_color_manual(values=c("#FEB24C", "#FF4500")) + 
+  scale_shape_manual(values=c(15, 16, 17, 18)) +
+  theme(legend.position = "none")+
   facet_wrap(~ MRT,scales='free') + ylim(-6.0, 6.0) 
 
 ggsave("pcoa2_trait_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
 ```
 
 ## Diversity Models
+
+# Taxonomic Diversity
 
 ```{r}
 # Read in diversity for each site every year
@@ -321,4 +349,254 @@ c_div <- left_join(div_tib, coral_grp)
 c_div <- c_div %>% mutate(MRT=recode(MRT, `1` = "node1", `2` = "node2", `3` = "node3", `4` = "node4"))
 c_div$MRT <- as.factor(c_div$MRT)
 ```
+
+# Corals
+
+```{r}
+# Random Intercept
+d_c1 <- lme4::lmer(Taxonomic ~ Year*MRT + (1|MRT/Site), data = c_div)
+summary(d_c1)
+summary(as_lmerModLmerTest(d_c1))
+
+# No Interaction Term
+d_c2 <- lme4::lmer(Taxonomic ~ Year+MRT + (1|MRT/Site), data = c_div)
+summary(d_c2)
+summary(as_lmerModLmerTest(d_c2))
+
+# Anova
+anova(d_c1, d_c2)
+
+#lme
+d_lmec1 <- lme(fixed = Taxonomic~Year*MRT, random = ~ 1|MRT/Site,data=c_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(c_div, nesting(MRT, Site), Year) 
+pred<-predict(d_lmec1, newdata, level=0, se.fit=T) 
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, c_div)
+
+d_t <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)+geom_point(aes(Year, Taxonomic, color = Reef, shape = MRT),c_div, size = 2.5)+geom_path(aes(Year, Taxonomic, group= Site, color = Reef),c_div[!is.na(c_div$Taxonomic),], size = 0.7)+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = Reef), fitted_pred, alpha = .5) +
+  ggthemes::theme_base() +
+  scale_fill_manual(values=c("#FEB24C", "#FF4500")) + 
+  geom_path() + labs(x = "Year", y = "Taxonomic Diversity") +
+  scale_color_manual(values=c("#FEB24C", "#FF4500")) + 
+  scale_shape_manual(values=c(15, 16, 17, 18)) +
+  theme(legend.position = "none") + 
+  facet_wrap(~ MRT,scales='free') + ylim(0.7, 1.1) 
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
+# Benthic
+
+```{r}
+# Random Intercept
+d_b1 <- lme4::lmer(Taxonomic ~ Year*MRT + (1|MRT/Site), data = b_div)
+summary(d_b1)
+summary(as_lmerModLmerTest(d_b1))
+
+# No Interaction Term
+d_b2 <- lme4::lmer(Taxonomic ~ Year+MRT + (1|MRT/Site), data = b_div)
+summary(d_b2)
+summary(as_lmerModLmerTest(d_b2))
+
+# Anova
+anova(d_b1, d_b2)
+
+#lme
+d_lmeb1 <- lme(fixed = Taxonomic~Year*MRT, random = ~ 1|MRT/Site,data=b_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(b_div, nesting(MRT, Site), Year) 
+pred<-predict(d_lmeb1, newdata, level=0, se.fit=T)
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, b_div)
+
+d_b <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)+geom_point(aes(Year, Taxonomic, color = Reef, shape = MRT),b_div, size = 2.5)+geom_path(aes(Year, Taxonomic, group= Site, color = Reef),b_div[!is.na(b_div$Taxonomic),], size = 0.7)+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = Reef), fitted_pred, alpha = .5)+
+  ggthemes::theme_base() + 
+  scale_fill_manual(values=c("#FF8C00", "#FF4500")) + 
+  geom_path() + labs(x = "Year", y = "Taxonomic Diversity")+
+  scale_color_manual(values=c("#FF8C00", "#FF4500")) + 
+  facet_wrap(~ MRT, scales='free') + ylim(0.7, 1.1) 
+
+ggsave("tax_benth_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
+# Traits
+
+```{r}
+# Random Intercept
+d_t1 <- lme4::lmer(Taxonomic ~ Year*MRT + (1|MRT/Site), data = t_div)
+summary(d_t1)
+summary(as_lmerModLmerTest(d_t1))
+
+# No Interaction Term
+d_t2 <- lme4::lmer(Taxonomic ~ Year+MRT + (1|MRT/Site), data = t_div)
+summary(d_t2)
+summary(as_lmerModLmerTest(d_t2))
+
+# Anova
+anova(d_t1, d_t2)
+
+#lme
+d_lmet1 <- lme(fixed = Taxonomic~Year*MRT, random = ~ 1|MRT/Site,data=t_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(t_div, nesting(MRT, Site), Year) 
+pred<-predict(d_lmet1, newdata, level=0, se.fit=T)
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, t_div)
+
+d_t <- ggplot(fitted_pred, aes(Year, fit)) + geom_path(size = 0.8)+geom_point(aes(Year, Taxonomic, color = Reef, shape = MRT),t_div, size = 2.5)+geom_path(aes(Year, Taxonomic, group= Site, color = Reef),t_div[!is.na(t_div$Taxonomic),], size = 0.7)+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5) +
+  ggthemes::theme_base() + 
+  scale_fill_manual(values=c("#FF8C00", "#FF4500", "#FF4500")) + 
+  geom_path() + labs(x = "Year", y = "Taxonomic Diversity") +
+  scale_color_manual(values=c("#FF8C00", "#FF4500")) + 
+  facet_wrap(~ MRT, scales='free') + ylim(0.7, 1.1)
+
+ggsave("tax_trait_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
+# Functional Diversity
+
+# Corals
+
+```{r}
+# Random Intercept
+f_c1 <- lme4::lmer(Functional ~ Year*MRT + (1|MRT/Site), data = c_div)
+summary(f_c1)
+summary(as_lmerModLmerTest(f_c1))
+
+# No Interaction Term
+f_c2 <- lme4::lmer(Functional ~ Year+MRT + (1|MRT/Site), data = c_div)
+summary(f_c2)
+summary(as_lmerModLmerTest(f_c2))
+
+# Anova
+anova(f_c1, f_c2)
+
+#lme
+f_lmec1 <- lme(fixed = Functional~Year*MRT, random = ~ 1|MRT/Site,data=c_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(c_div, nesting(MRT, Site), Year) 
+pred<-predict(f_lmec1, newdata, level=0, se.fit=T)
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, c_div)
+
+f_c <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)+geom_point(aes(Year, Functional, color = Reef, shape = MRT),c_div, size = 2.5)+geom_path(aes(Year, Functional, group= Site, color = Reef),c_div[!is.na(c_div$Functional),], size = 0.7) +
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = Reef), fitted_pred, alpha = .5) +
+  ggthemes::theme_base() + 
+  scale_fill_manual(values=c("#FF8C00", "#FF4500")) + 
+  geom_path() + labs(x = "Year", y = "Functional Diversity") +
+  scale_color_manual(values=c("#FF8C00", "#FF4500")) + 
+  facet_wrap(~ MRT, scales='free') + ylim(0.1, 0.4)
+
+ggsave("fun_coral_mrt.pdf", height=8.5, width=10.75)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
+# Benthic
+
+```{r}
+# Random Intercept
+f_b1 <- lme4::lmer(Functional ~ Year*MRT + (1|MRT/Site), data = b_div)
+summary(f_b1)
+summary(as_lmerModLmerTest(f_b1))
+
+# No Interaction Term
+f_b2 <- lme4::lmer(Functional ~ Year+MRT + (1|MRT/Site), data = b_div)
+summary(b2)
+summary(as_lmerModLmerTest(b2))
+
+# Anova
+anova(f_b1, f_b2)
+
+#lme
+f_lmeb1 <- lme(fixed = Functional~Year*MRT, random = ~ 1|MRT/Site,data=b_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(b_div, nesting(MRT, Site), Year) 
+pred<-predict(f_lmeb1, newdata, level=0, se.fit=T)
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, b_div)
+
+f_b <- ggplot(fitted_pred, aes(Year, fit, group = MRT)) + geom_path(size = 0.8)+geom_point(aes(Year, Functional, color = Reef, shape = MRT),b_div, size = 2.5)+geom_path(aes(Year, Functional, group= Site, color = Reef),b_div[!is.na(b_div$Functional),], size = 0.7)+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = Reef), fitted_pred, alpha = .5)+
+  ggthemes::theme_base() + 
+  scale_fill_manual(values=c("#FF8C00", "#FF4500")) + 
+  geom_path() + labs(x = "Year", y = "Functional Diversity")+
+  scale_color_manual(values=c("#FF8C00", "#FF4500")) + 
+  facet_wrap(~ MRT, scales='free') + ylim(0.1, 0.4) 
+
+ggsave("fun_benth_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
+# Traits
+
+```{r}
+# Random Intercept
+f_t1 <- lme4::lmer(Functional ~ Year*MRT + (1|MRT/Site), data = t_div)
+summary(f_t1)
+summary(as_lmerModLmerTest(f_t1))
+
+# No Interaction Term
+f_t2 <- lme4::lmer(Functional ~ Year+MRT + (1|MRT/Site), data = t_div)
+summary(f_t2)
+summary(as_lmerModLmerTest(f_t2))
+
+# Anova
+anova(f_t1, f_t2)
+
+#lme
+f_lmet1 <- lme(fixed = Functional~Year*MRT, random = ~ 1|MRT/Site,data=t_div,na.action=na.omit)
+
+# taxonomic c1
+newdata <- tidyr::expand(t_div, nesting(MRT, Site), Year) 
+pred<-predict(f_lmet1, newdata, level=0, se.fit=T)
+fitted_pred<-newdata %>%
+  mutate(fit=pred$fit) %>%
+  mutate(fit_se=pred$se.fit)
+
+fitted_pred <- left_join(fitted_pred, t_div)
+
+f_p <- ggplot(fitted_pred, aes(Year, fit)) + geom_path(size = 0.8)+geom_point(aes(Year, Functional, color = Reef, shape = MRT),t_div, size = 2.5)+geom_path(aes(Year, Functional, group= Site, color = Reef),t_div[!is.na(t_div$Functional),], size = 0.7)+
+  geom_ribbon( aes(ymin = fit-1.96*fit_se, ymax = fit+1.96*fit_se, fill = MRT), fitted_pred, alpha = .5)+
+  ggthemes::theme_base() + scale_fill_manual(values=c("#FEB24C", "#FF4500", "#FF4500", "#FF4500")) + geom_path() + 
+  scale_color_manual(values=c("#FEB24C", "#FF4500")) + 
+  scale_shape_manual(values=c(15, 16, 17, 18)) +
+  theme(legend.position = "none") + 
+  labs(x = "Year", y = "Functional Diversity") +
+  facet_wrap(~ MRT, scales='free') + ylim(0.1, 0.4) 
+
+ggsave("fun_trait_mrt.pdf", height=4.5, width=15)
+
+#rm(newdata, pred, fitted_pred, fitted_pred)
+```
+
 
