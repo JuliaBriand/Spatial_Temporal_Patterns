@@ -1,10 +1,9 @@
 ---
-title: "Coral Clustering & Ordination"
+title: "Benthic Clustering & Ordination"
 author: "Julia Briand"
 date: "1/26/2022"
 output: html_document
 ---
-
 This script was used to prepare data for Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient. Contact: Julia Briand (julia.briand@mail.mcgill.ca)
 
 ```{r setup, include=FALSE}
@@ -42,17 +41,7 @@ env <- read.csv("Env_Supp.csv", row.names = 2)
 spe <- read.csv("Species.csv", row.names = 2)
 ```
 
-## Subset only coral species
-
-```{r}
-full_trait <- read.csv("Imput.Trait.csv", row.names = 1)
-spe_sub <- spe[,full_trait$species]
-spe <- spe_sub
-# mean species cover
-spe.mean <- spe.mean[,full_trait$species]
-```
-
-## Transform species data
+## Transform species (benthic cover) data
 
 ```{r}
 spe.log <- log1p(spe)
@@ -60,7 +49,7 @@ spe.log.bray <- vegdist(spe.bray)
 spe.mean.log <- log1p(spe.mean)
 ```
 
-## Standardize Environmental Data
+## Standardize environmental Data
 
 ```{r}
 env.z <- decostand(env, method="standardize")
@@ -89,22 +78,22 @@ spe_grps # clusters
 ## Multivariate Regression Trees
 
 ```{r}
-coral.mrt <- mvpart(as.matrix(spe.log) ~SST.Mean + SPM + CHL + Fetch + Depth,env.z,
+benth.mrt <- mvpart(as.matrix(spe.log) ~SST.Mean + SPM + CHL + Fetch + Depth,env.z,
                     legend=FALSE, margin=0.01, cp=0, xv="pick",
-                    xval=nrow(spe.log), xvmult=100, which=4, size = 4)
+                    xval=nrow(spe.log), xvmult=100, which=4, size = 5)
 
-summary(coral.mrt)
-printcp(coral.mrt)
+summary(benth.mrt)
+printcp(benth.mrt)
 
-coral.mvpart <- factor(coral.mrt$where)
-levels(coral.mvpart) <- 1:length(levels(coral.mvpart))
-coral.mvpart
+benth.mvpart <- factor(benth.mrt$where)
+levels(benth.mvpart) <- 1:length(levels(benth.mvpart))
+benth.mvpart
 
 rn <- rownames(spe.log)
 rn <- as.data.frame(rn)
-df <- cbind(rn, coral.mvpart)
+df <- cbind(rn, benth.mvpart)
 
-write.csv(df, "temp_coral_mrt_grps.csv")
+write.csv(df, "temp_benth_mrt_grps.csv")
 ```
 
 ## Distance Based RDA
@@ -134,30 +123,28 @@ abs_DB_SST <- as.data.frame(abs(SST_scores$species), keep.rownames=TRUE)
 SST_DB_MDS1_spe <- abs_DB_SST[abs_DB_SST$CAP1 > quantile(abs_DB_SST$CAP1,prob=1-10/100),]
 SST_DB_spe <- rownames(SST_DB_MDS1_spe)
 SST_DB_spe
-
-
 ```
 
 ## PCoA
 
 ```{r}
-coral_pcoa <- capscale(spe.log ~ 1, dist="bray", add = TRUE, metaMDS = TRUE)
-coral_scores <- scores(coral_pcoa)
+benth_pcoa <- capscale(spe.log ~ 1, dist="bray", add = TRUE, metaMDS = TRUE)
+benth_scores <- scores(benth_pcoa)
 
 # Top 15 % of species scores along the first axis
-abs_coral <- as.data.frame(abs(coral_scores$species), keep.rownames=TRUE)
-coral_MDS1_spe <- abs_coral[abs_coral$MDS1 > quantile(abs_coral$MDS1,prob=1-15/100),]
+abs_benth <- as.data.frame(abs(benth_scores$species), keep.rownames=TRUE)
+benth_MDS1_spe <- abs_benth[abs_benth$MDS1 > quantile(abs_benth$MDS1,prob=1-15/100),]
 
 # Top 15 % of species scores along the second axis
-coral_MDS2_spe <- abs_coral[abs_coral$MDS2 > quantile(abs_coral$MDS2,prob=1-15/100),]
-coral_spe <- rownames(coral_MDS1_spe)
+benth_MDS2_spe <- abs_benth[abs_benth$MDS2 > quantile(abs_benth$MDS2,prob=1-15/100),]
+benth_spe <- rownames(benth_MDS1_spe)
 
-pcoa_scores_dat <- as.data.frame(coral_scores$species)
+pcoa_scores_dat <- as.data.frame(benth_scores$species)
 pcoa_scores_dat[row.names(pcoa_scores_dat)[row.names(pcoa_scores_dat) %in% 
-                                             row.names(coral_MDS1_spe)],]
+                                             row.names(benth_MDS1_spe)],]
 
 # Plot top 15 % on first axis
-pcoa_spe_dat <- as.data.frame(coral_scores$species[coral_spe,])
+pcoa_spe_dat <- as.data.frame(benth_scores$species[benth_spe,])
 
 ggplot(pcoa_spe_dat, aes(MDS1, MDS2)) + 
   geom_segment(aes(x = rep(0,7),  y = rep(0,7), xend = MDS1, yend = MDS2), 
@@ -168,7 +155,7 @@ ggplot(pcoa_spe_dat, aes(MDS1, MDS2)) +
   ggthemes::theme_base() +
   xlim(-2,2) + ylim(-2,2)
 
-ggsave("coral_scores.pdf", height=5, width=6)
+ggsave("benthic_scores.pdf", height=5, width=6)
 ```
 
 ## Set up tibbles
@@ -250,4 +237,3 @@ sub_spe
 sub_scores_dat <- as.data.frame(sub_scores$species)
 sub_scores_dat[row.names(sub_scores_dat)[row.names(sub_scores_dat) %in% sub_spe],]
 ```
-
