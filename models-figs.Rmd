@@ -5,6 +5,8 @@ date: "1/11/2022"
 output: html_document
 ---
 
+This script was used to prepare data for Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient. Contact: Julia Briand (julia.briand@mail.mcgill.ca)
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)

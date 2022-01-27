@@ -1,0 +1,253 @@
+---
+title: "Corals"
+author: "Julia Briand"
+date: "1/26/2022"
+output: html_document
+---
+
+This script was used to prepare data for Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient. Contact: Julia Briand (julia.briand@mail.mcgill.ca)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(ncdf4)
+library(fields)
+library(tidyverse)
+library(sf)
+library(raster)
+library(rasterVis)
+library(rgdal)
+library(biogeo)
+library(vegan)
+library(gclus)
+library(ape)
+library(labdsv)
+library(rdaTest)
+library(ggvegan)
+library(nlme)
+library(directlabels)
+library(ggrepel)
+library(maptools)
+library(mvpart)
+library(MVPARTwrap)
+library(plyr)
+library(MASS)
+```
+
+## Read in environmental and benthic data
+
+```{r}
+env <- read.csv("Env_Supp.csv", row.names = 2) 
+spe <- read.csv("Species.csv", row.names = 2)
+```
+
+## Subset only coral species
+
+```{r}
+full_trait <- read.csv("Imput.Trait.csv", row.names = 1)
+spe_sub <- spe[,full_trait$species]
+spe <- spe_sub
+# mean species cover
+spe.mean <- spe.mean[,full_trait$species]
+```
+
+## Transform species data
+
+```{r}
+spe.log <- log1p(spe)
+spe.log.bray <- vegdist(spe.bray)
+spe.mean.log <- log1p(spe.mean)
+```
+
+## Standardize Environmental Data
+
+```{r}
+env.z <- decostand(env, method="standardize")
+# the data are now centered (means~0)
+apply(env.z, 2, mean) 
+# the data are now scaled (standard deviations=1)
+apply(env.z, 2, sd)
+```
+
+## K means clustering
+
+```{r}
+# PCoA Site Scores
+mean_pcoa <- capscale(spe.mean.log ~ 1, dist="bray", add = TRUE, metaMDS = TRUE)
+mean_scores <- scores(mean_pcoa)
+site.scores <- mean_scores$sites
+
+# K means
+spe.kmeans <- kmeans(site.scores, centers = 2, nstart = 100000)
+spe_grps <- as.data.frame(unlist(spe.kmeans$cluster))
+names(spe_grps) <- (c("Group"))
+spe_grps <- rownames_to_column(spe_grps, var = "Site")
+spe_grps # clusters
+```
+
+## Multivariate Regression Trees
+
+```{r}
+coral.mrt <- mvpart(as.matrix(spe.log) ~SST.Mean + SPM + CHL + Fetch + Depth,env.z,
+                    legend=FALSE, margin=0.01, cp=0, xv="pick",
+                    xval=nrow(spe.log), xvmult=100, which=4, size = 4)
+
+summary(coral.mrt)
+printcp(coral.mrt)
+
+coral.mvpart <- factor(coral.mrt$where)
+levels(coral.mvpart) <- 1:length(levels(coral.mvpart))
+coral.mvpart
+
+rn <- rownames(spe.log)
+rn <- as.data.frame(rn)
+df <- cbind(rn, coral.mvpart)
+
+write.csv(df, "temp_coral_mrt_grps.csv")
+```
+
+## Distance Based RDA
+
+```{r}
+# RDA using mean sea surface temperature
+SST_rda <- capscale(spe.log ~ SST.Mean + SPM + CHL + Fetch + Depth,
+                     env.z, add = TRUE, dist="bray")
+summary(SST_rda, display=NULL)
+
+# R2
+SST_R2adj <- RsquareAdj(SST_rda)$adj.r.squared
+
+# Model selection
+ordiR2step(capscale(spe.log ~ 1, data=env.z, add = TRUE, dist = "bray"), scope= formula(SST_rda), direction= "forward", R2scope=TRUE, pstep=1000)
+
+
+# Significance of Axes
+anova.cca(SST_rda, step=1000)
+anova.cca(SST_rda, step=1000, by="axis") 
+
+# Site and species scores
+SST_scores <- scores(SST_rda)
+
+# Top 10 % of species scores along the first axis
+abs_DB_SST <- as.data.frame(abs(SST_scores$species), keep.rownames=TRUE)
+SST_DB_MDS1_spe <- abs_DB_SST[abs_DB_SST$CAP1 > quantile(abs_DB_SST$CAP1,prob=1-10/100),]
+SST_DB_spe <- rownames(SST_DB_MDS1_spe)
+SST_DB_spe
+
+
+```
+
+## PCoA
+
+```{r}
+coral_pcoa <- capscale(spe.log ~ 1, dist="bray", add = TRUE, metaMDS = TRUE)
+coral_scores <- scores(coral_pcoa)
+
+# Top 15 % of species scores along the first axis
+abs_coral <- as.data.frame(abs(coral_scores$species), keep.rownames=TRUE)
+coral_MDS1_spe <- abs_coral[abs_coral$MDS1 > quantile(abs_coral$MDS1,prob=1-15/100),]
+
+# Top 15 % of species scores along the second axis
+coral_MDS2_spe <- abs_coral[abs_coral$MDS2 > quantile(abs_coral$MDS2,prob=1-15/100),]
+coral_spe <- rownames(coral_MDS1_spe)
+
+pcoa_scores_dat <- as.data.frame(coral_scores$species)
+pcoa_scores_dat[row.names(pcoa_scores_dat)[row.names(pcoa_scores_dat) %in% 
+                                             row.names(coral_MDS1_spe)],]
+
+# Plot top 15 % on first axis
+pcoa_spe_dat <- as.data.frame(coral_scores$species[coral_spe,])
+
+ggplot(pcoa_spe_dat, aes(MDS1, MDS2)) + 
+  geom_segment(aes(x = rep(0,7),  y = rep(0,7), xend = MDS1, yend = MDS2), 
+               data = pcoa_spe_dat, arrow=arrow(length = unit(0.3,"cm"))) +
+  geom_text_repel(aes(label = rownames(pcoa_spe_dat)), 
+                  data = pcoa_spe_dat, box.padding = 0.2, 
+                  nudge_y = -0.01, nudge_x = -0.04) + 
+  ggthemes::theme_base() +
+  xlim(-2,2) + ylim(-2,2)
+
+ggsave("coral_scores.pdf", height=5, width=6)
+```
+
+## Set up tibbles
+
+```{r}
+env.tib <- as_tibble(env, rownames = "Site")
+spe.tib <- as_tibble(spe, rownames = "Site")
+```
+
+## Temporal RDAs
+
+```{r}
+# Exposed
+spe_exp <- spe.tib %>% filter(Year >= 2008) %>% select(-c(Year)) %>%  
+  filter(Site %in% c("zapoeste", "isbasti", "tobobe", "bastinor")) %>% column_to_rownames("Site.Year") %>% select(-Site)
+
+# Protected
+spe_pro <- spe.tib %>% filter(Year >= 2008) %>% select(-c(Year)) %>%  
+  filter(Site %in% c("caroldan", "Penivali", "iscaagua", "iscolon", "iscristo", "issobut", "Gallialm")) %>% column_to_rownames("Site.Year") %>% select(-Site)
+
+# Subset Env Data
+
+# Exp Env
+env_exp <- env.tib %>% filter(Year >= 2008) %>% 
+  filter(Site %in% c("zapoeste", "isbasti", "tobobe", "bastinor")) %>% column_to_rownames("Site.Year")
+
+# Pro Env
+env_pro <- env.tib %>% filter(Year >= 2008) %>%
+  filter(Site %in% c("caroldan", "Penivali", "iscaagua", "iscolon", "iscristo", "issobut", "Gallialm")) %>% column_to_rownames("Site.Year")
+
+# Partial dbRDA Exposed
+exp_time <- capscale(log1p(spe_exp) ~ as.numeric(Year) + Condition(Site), env_exp,
+                     add = TRUE, dist="bray")
+summary(exp_time)
+exp_R2adj <- RsquareAdj(exp_time)$adj.r.squared
+
+# Partial DB RDA scores
+exp_scores <- scores(exp_time)
+
+# Top 15 % of species scores along the first axis (Year)
+abs_exp <- as.data.frame(abs(exp_scores$species), keep.rownames=TRUE)
+exp_RDA_spe <- abs_exp[abs_exp$CAP1 > quantile(abs_exp$CAP1,prob=1-15/100),]
+exp_spe <- rownames(exp_RDA_spe)
+exp_spe
+
+# Partial dbRDA Protected
+pro_time <- capscale(log1p(spe_pro) ~ as.numeric(Year) + Condition(Site), env_pro,
+                     add = TRUE, dist="bray")
+summary(pro_time)
+pro_R2adj <- RsquareAdj(pro_time)$adj.r.squared
+
+# Partial DB RDA scores
+pro_scores <- scores(pro_time)
+
+# Top 15 % of species scores along the first axis (Year)
+abs_pro <- as.data.frame(abs(pro_scores$species), keep.rownames=TRUE)
+pro_RDA_spe <- abs_pro[abs_pro$CAP1 > quantile(abs_pro$CAP1,prob=1-15/100),]
+pro_spe <- rownames(pro_RDA_spe)
+pro_spe
+
+# 1999 - 2013 subset 
+spe_sub <- spe.tib %>% filter(Site %in% c("caroldan", "isbasti", "iscaagua", "iscolon", "iscristo", "issobut")) %>% select(-c(Year)) %>% column_to_rownames("Site.Year") %>% select(-Site)
+
+env_sub <- env.tib %>% filter(Site %in% c("caroldan", "isbasti", "iscaagua", "iscolon", "iscristo", "issobut")) %>% column_to_rownames("Site.Year")
+
+sub_time <- capscale(log1p(spe_sub) ~ as.numeric(Year) + Condition(Site), env_sub,
+                      add = TRUE, dist="bray")
+summary(sub_time)
+sub_R2adj <- RsquareAdj(sub_time)$adj.r.squared
+
+sub_scores <- scores(sub_time)
+
+# Top 15 % of species scores along the first axis (Year)
+abs_sub <- as.data.frame(abs(sub_scores$species), keep.rownames=TRUE)
+sub_RDA_spe <- abs_sub[abs_sub$CAP1 > quantile(abs_sub$CAP1,prob=1-15/100),]
+sub_spe <- rownames(sub_RDA_spe)
+sub_spe
+
+sub_scores_dat <- as.data.frame(sub_scores$species)
+sub_scores_dat[row.names(sub_scores_dat)[row.names(sub_scores_dat) %in% sub_spe],]
+```
+
