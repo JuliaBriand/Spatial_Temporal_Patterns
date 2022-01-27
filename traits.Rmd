@@ -1,0 +1,341 @@
+---
+title: "Trait Imputation, Clustering & Ordination"
+author: "Julia Briand"
+date: "1/27/2022"
+output: html_document
+---
+
+This script was used to prepare data for Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient. Contact: Julia Briand (julia.briand@mail.mcgill.ca)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rotl)
+library(phytools)
+library(ape)
+library(Rphylopars)
+library(apTreeshape)
+library(geiger)
+library(picante)
+library(mice)
+library(tidyverse)
+library(lsr)
+library(ggplot2)
+library(betapart)
+library(FD)
+library(vegan)
+library(FactoMineR)
+library(ggrepel)
+```
+
+## Trait data
+
+```{r}
+trait <- read.csv("Trait_Supp.csv", row.names = 1)
+trait <- trait[,-c(1,4,5,7,8,12)] #remove categorical traits and notes
+```
+
+## Tree
+
+```{r}
+remove <- c("Isophyllastrea_rigida_MUS", "Madracis_asperula_AST", "Mycetophyllia_reesi_MUS", "Scolymia_lacera_MUS") #species not in tree
+trait <- trait[!rownames(trait) %in% remove, ] #remove species with no tip
+
+tree <- read.nexus(file = "doi_10.5061_dryad.178n3__v1/Huang&Roy_Molecular.tre")
+keep <- keep.tip(tree, rownames(trait))
+```
+
+## Impute
+
+```{r}
+impute<-phylopars(trait,keep,phylo_correlated = FALSE) 
+imput_trait <- impute$anc_recon[1:42,]
+
+imput_trait <- rbind(imput_trait, trait[remove,])
+imput_tib <- as_tibble(imput_trait, rownames = "tax")
+
+# Add back the categorical trait columns
+trait2 <- trait[, c(1,4,5,7,8,12)]
+trait_tib <- as_tibble(trait2, rownames= "tax")
+trait_tib <- trait_tib %>% na_if("")
+full_trait <- trait_tib %>% left_join(imput_tib) 
+full_trait <- full_trait %>% select(-c(tax))
+full_trait <- full_trait %>% mutate(across(where(is.numeric), round, 3))
+```
+
+## Read in species and environemntal data
+
+```{r}
+env <- read.csv("Env_Supp.csv", row.names = 2) 
+spe <- read.csv("Species.csv", row.names = 2)
+```
+
+## Subset only coral species
+
+```{r}
+full_trait <- read.csv("Imput.Trait.csv", row.names = 1)
+spe_sub <- spe[,full_trait$species]
+spe <- spe_sub
+# mean species cover
+spe.mean <- spe.mean[,full_trait$species]
+```
+
+## Transform species data
+
+```{r}
+spe.log <- log1p(spe)
+spe.log.bray <- vegdist(spe.bray)
+spe.mean.log <- log1p(spe.mean)
+```
+
+## Standardize Environmental Data
+
+```{r}
+env.z <- decostand(env, method="standardize")
+# the data are now centered (means~0)
+apply(env.z, 2, mean) 
+# the data are now scaled (standard deviations=1)
+apply(env.z, 2, sd)
+```
+
+## Community Weighted Means
+
+```{r}
+full_trait <- full_trait %>% mutate(across(where(is.character), as.factor))
+full_trait <- full_trait %>% column_to_rownames("species")
+cwm <- functcomp(full_trait, as.matrix(spe_sub), CWM.type = "all")
+scale_cwm <- scale(cwm)
+```
+
+## K means clustering
+
+```{r}
+cwm_tib <- as_tibble(cwm, rownames = "Site.Year")
+cwm_tib <- cwm_tib %>% separate(Site.Year, c("Site", "Year"), remove = FALSE)
+cwm_tib <- cwm_tib %>% mutate_at(vars(colnames(cwm_tib[4:ncol(cwm_tib)])), as.numeric)
+
+sapply(cwm_tib, is.numeric) # check
+
+bastinor <- cwm_tib %>% 
+filter(Site ==  "bastinor") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+caroldan <- cwm_tib %>% 
+filter(Site == "caroldan") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+Gallialm <- cwm_tib %>% 
+filter(Site == "Gallialm") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+isbasti <- cwm_tib %>% filter(Site == "isbasti") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+iscaagua <- cwm_tib %>% filter(Site == "iscaagua") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+iscolon <- cwm_tib %>% filter(Site == "iscolon") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+iscristo <- cwm_tib %>% filter(Site == "iscristo") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+issobut <- cwm_tib %>% filter(Site == "issobut") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+Penivali <- cwm_tib %>% filter(Site == "Penivali") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+tobobe <- cwm_tib %>% filter(Site == "tobobe") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+zapoeste <- cwm_tib %>% filter(Site == "zapoeste") %>% 
+summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+
+# Combine site tibbles:
+site.mean <- bind_rows(zapoeste = zapoeste,tobobe = tobobe,issobut = issobut,iscristo = iscristo,iscolon = iscolon,iscaagua = iscaagua,isbasti = isbasti,Gallialm = Gallialm, caroldan = caroldan, bastinor = bastinor,Penivali = Penivali, .id = "Site")
+
+#' Reorder:
+site.mean <- site.mean %>% column_to_rownames(var = "Site")
+
+cwm_mean_stand <- decostand(site.mean, "range")
+cwm_mean_scale <- scale(site.mean)
+spe.kmeans <- kmeans(cwm_mean_scale, centers = 2, nstart = 100000)
+site_grps <- as.data.frame(unlist(spe.kmeans$cluster))
+names(site_grps) <- (c("Group"))
+site_grps <- rownames_to_column(site_grps, var = "Site")
+site_grps
+```
+
+## Multivariate Regression Tree
+
+```{r}
+trait.mean.mrt <- mvpart(as.matrix(cwm_mean_scale) ~SST.Mean + SPM + CHL + Fetch + Depth,env.mean,
+                         legend=FALSE, margin=0.01, cp=0, xv="pick",
+                         xval=nrow(cwm_mean_scale), xvmult=100, which=4,size =4)
+
+summary(trait.mean.mrt)
+printcp(trait.mean.mrt)
+
+#MRT groups
+trait.mean.MRT <- MRT(trait.mean.mrt)
+trait.mvpart.g <- factor(trait.mean.mrt$where)
+levels(trait.mvpart.g) <- 1:length(levels(trait.mvpart.g))
+trait.mvpart.g
+mrt_sites <- rownames(cwm_mean_scale)
+mrt_dat <- as.data.frame(mrt_sites)
+mrt_dat <- cbind(mrt_dat, trait.mvpart.g)
+```
+
+## MFA
+
+```{r}
+grp <- c(7, 2, 2, 3, 3, 1, 1, 1, 1, 1)
+# Compute the MFA
+mfa <- MFA(scale_cwm,
+              group = grp,
+              type = c("c", "c", "c", "c", "c", "c", "c", "c", "c", "c"),
+              ncp = 50,
+              name.group = c("growth_form", "larval_dev", "sex_syst", "water_clar", 
+                             "wave_exp", "max_colony", "growth_rate", 
+                             "corallite_max", "depth_up", "depth_range"))
+
+# Top 30 % of trait scores along the first axis
+mfa$global.pca$var$coord # coordinates of traits
+abs_trait <- as.data.frame(abs(mfa$global.pca$var$coord), keep.rownames=TRUE)
+Dim.1_trait <- abs_trait[abs_trait$Dim.1 > quantile(abs_trait$Dim.1,prob=1-30/100),]
+
+# Top 30 % of trait scores along the second axis
+Dim.2_trait <- abs_trait[abs_trait$Dim.2 > quantile(abs_trait$Dim.2,prob=1-30/100),]
+MFA_trait <- rownames(Dim.1_trait)
+
+mfa_dat <- as.data.frame(mfa$global.pca$var$coord[MFA_trait,])
+ggplot(mfa_dat, aes(Dim.1, Dim.2)) + 
+  geom_segment(aes(x = rep(0,7),  y = rep(0,7), 
+                   xend = Dim.1, yend = Dim.2), 
+               data = mfa_dat, arrow=arrow(length = unit(0.3,"cm"))) +
+  geom_text_repel(aes(label = rownames(mfa_dat)), 
+                  data = mfa_dat, box.padding = 0.2, 
+                  nudge_y = -0.01, nudge_x = -0.04) + 
+  ggthemes::theme_base() +
+  xlim(-6,6) + ylim(-6,6)
+
+ggsave("trait_scores.pdf", height=5, width=6)
+
+mfa$global.pca$ind$coord #coords for the sites & years
+
+mfa_site <- as.data.frame(mfa$global.pca$ind$coord)
+mfa_tib <- as_tibble(mfa_site, rownames = "sites")
+mfa_tib <- mfa_tib %>% separate(sites, c("Site", "Year"), remove = FALSE)
+
+mfa_grp <- mfa_tib %>% left_join(site_grps)
+ggplot(mfa_grp, aes(Dim.1, Dim.2, color = as.character(Group), group = Group)) +
+  geom_point(size = 2.5) +
+  ggthemes::theme_base()+
+scale_color_manual(values=c("#FF99CC", "#56B4E9")) +
+  xlim(-5.5,5.5) + ylim(-6,6) +
+  labs(x = "MFA 1",
+       y = "MFA 2")
+
+```
+
+## RDA
+
+```{r}
+sst_rda <- rda(scale(cwm) ~ SST.Mean + SPM + CHL + Fetch + Depth,
+         env.z)
+
+summary(sst_rda, display=NULL)
+
+# R2
+sst_R2adj <- RsquareAdj(sst_rda)$adj.r.squared #0.3186435
+
+# Model Selection
+ordiR2step(rda(scale(cwm) ~ 1, data=env.z), scope= formula(sst_rda), direction= "forward", R2scope=TRUE, pstep=1000)
+
+# Significance of Axes
+anova.cca(sst_rda, step=1000) 
+anova.cca(sst_rda, step=1000, by="axis")
+
+# Top 30 % of trait scores along the first axis
+abs_sst <- as.data.frame(abs(sst_scores$species), keep.rownames=TRUE)
+sst_RDA1 <- abs_sst[abs_sst$RDA1 > quantile(abs_sst$RDA1,prob=1-30/100),]
+sst_RDA_traits <- rownames(sst_RDA1)
+sst_RDA_traits
+```
+
+## Temporal (Partial) RDA
+
+```{r}
+env.tib <- as_tibble(env, rownames = "Site.Year")
+env.tib <- env.tib %>% separate(Site.Year, c("Site", "Year"), remove = FALSE)
+env.tab <- env.tib %>% column_to_rownames(var = "Site.Year") 
+env.tib <- env.tib %>% mutate(Year = as.numeric(Year))
+
+# Exposed
+cwm_exp <- cwm_tib %>% filter(Year >= 2008) %>% select(-c(Year)) %>%  
+  filter(Site %in% c("zapoeste", "isbasti", "tobobe", "bastinor")) %>% column_to_rownames("Site.Year") %>% select(-Site)
+
+# Protected
+cwm_pro <- cwm_tib %>% filter(Year >= 2008) %>% select(-c(Year)) %>%  
+  filter(Site %in% c("caroldan", "Penivali", "iscaagua", "iscolon", "iscristo", "issobut", "Gallialm")) %>% column_to_rownames("Site.Year") %>% select(-Site)
+
+# Subset Env Data
+
+# Exp Env
+env_exp <- env.tib %>% filter(Year >= 2008) %>% 
+  filter(Site %in% c("zapoeste", "isbasti", "tobobe", "bastinor")) %>% column_to_rownames("Site.Year")
+
+# Pro Env
+env_pro <- env.tib %>% filter(Year >= 2008) %>%
+  filter(Site %in% c("caroldan", "Penivali", "iscaagua", "iscolon", "iscristo", "issobut", "Gallialm")) %>% column_to_rownames("Site.Year")
+
+# Partial dbRDA Exposed
+exp_time <- rda(scale(cwm_exp) ~ as.numeric(Year) + Condition(Site), env_exp)
+summary(exp_time)
+exp_R2adj <- RsquareAdj(exp_time)$adj.r.squared #0.003968873
+
+# Partial DB RDA scores
+exp_scores <- scores(exp_time)
+
+# Top 30 % of trait scores along the first axis (Year)
+abs_exp <- as.data.frame(abs(exp_scores$species), keep.rownames=TRUE)
+exp_RDA_spe <- abs_exp[abs_exp$RDA1 > quantile(abs_exp$RDA1,prob=1-30/100),]
+exp_spe <- rownames(exp_RDA_spe)
+exp_spe
+
+exp_scores$species[rownames(exp_RDA_spe),]
+
+# Partial dbRDA Protected
+pro_time <- rda(scale(cwm_pro) ~ as.numeric(Year) + Condition(Site), env_pro)
+summary(pro_time)
+pro_R2adj <- RsquareAdj(pro_time)$adj.r.squared #0.04009446
+
+# Partial DB RDA scores
+pro_scores <- scores(pro_time)
+
+# Top 30 % of species scores along the first axis (Year)
+abs_pro <- as.data.frame(abs(pro_scores$species), keep.rownames=TRUE)
+pro_RDA_spe <- abs_pro[abs_pro$RDA1 > quantile(abs_pro$RDA1,prob=1-30/100),]
+pro_spe <- rownames(pro_RDA_spe)
+pro_spe
+
+pro_scores$species[rownames(pro_RDA_spe),]
+
+# 1999 - 2013 subset 
+cwm_sub <- cwm_tib %>% filter(Site %in% 
+                                c("caroldan", "isbasti", "iscaagua", "iscolon", "iscristo", "issobut")) %>% 
+  select(-c(Year)) %>% 
+  column_to_rownames("Site.Year") %>% 
+  select(-Site)
+
+env_sub <- env.tib %>% filter(Site %in% 
+                                c("caroldan", "isbasti", "iscaagua", "iscolon", "iscristo", "issobut")) %>% 
+  column_to_rownames("Site.Year")
+
+sub_time <- capscale(log1p(cwm_sub) ~ as.numeric(Year) + Condition(Site), env_sub,
+                     add = TRUE, dist="bray")
+summary(sub_time)
+sub_R2adj <- RsquareAdj(sub_time)$adj.r.squared
+
+sub_scores <- scores(sub_time)
+
+# Top 30 % of species scores along the first axis (Year)
+abs_sub <- as.data.frame(abs(sub_scores$species), keep.rownames=TRUE)
+sub_RDA_spe <- abs_sub[abs_sub$CAP1 > quantile(abs_sub$CAP1,prob=1-30/100),]
+sub_spe <- rownames(sub_RDA_spe)
+sub_spe
+
+sub_scores_dat <- as.data.frame(sub_scores$species)
+sub_scores_dat[row.names(sub_scores_dat)[row.names(sub_scores_dat) %in% sub_spe],]
+```
+
