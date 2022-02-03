@@ -1,0 +1,309 @@
+---
+title: "Taxonomic & Functional Diversity"
+author: "Julia Briand"
+date: "1/31/2022"
+output: html_document
+---
+
+This script was used to prepare data for Spatio-temporal patterns in coral reef composition and function across an altered environmental gradient. Contact: Julia Briand (julia.briand@mail.mcgill.ca)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(taxize)
+library(adespatial)
+library(rotl)
+library(phytools)
+library(ape)
+library(Rphylopars)
+library(apTreeshape)
+library(geiger)
+library(picante)
+library(mice)
+library(tidyverse)
+library(lsr)
+library(ggplot2)
+library(betapart)
+library(FD)
+library(vegan)
+```
+
+## Trait data
+
+```{r}
+trait <- read.csv("Trait_Supp.csv", row.names = 1)
+trait <- trait[,-c(1,4,5,7,8,12)] #remove categorical traits and notes
+```
+
+## Tree
+
+```{r}
+remove <- c("Isophyllastrea_rigida_MUS", "Madracis_asperula_AST", "Mycetophyllia_reesi_MUS", "Scolymia_lacera_MUS") #species not in tree
+trait <- trait[!rownames(trait) %in% remove, ] #remove species with no tip
+
+tree <- read.nexus(file = "doi_10.5061_dryad.178n3__v1/Huang&Roy_Molecular.tre")
+keep <- keep.tip(tree, rownames(trait))
+```
+
+## Impute
+
+```{r}
+impute<-phylopars(trait,keep,phylo_correlated = FALSE) 
+imput_trait <- impute$anc_recon[1:42,]
+
+imput_trait <- rbind(imput_trait, trait[remove,])
+imput_tib <- as_tibble(imput_trait, rownames = "tax")
+
+# Add back the categorical trait columns
+trait2 <- trait[, c(1,4,5,7,8,12)]
+trait_tib <- as_tibble(trait2, rownames= "tax")
+trait_tib <- trait_tib %>% na_if("")
+full_trait <- trait_tib %>% left_join(imput_tib) 
+full_trait <- full_trait %>% select(-c(tax))
+full_trait <- full_trait %>% mutate(across(where(is.numeric), round, 3))
+```
+
+## Read in species and environemntal data
+
+```{r}
+env <- read.csv("Env_Supp.csv", row.names = 2) 
+spe <- read.csv("Species.csv", row.names = 2)
+```
+
+## Subset only coral species
+
+```{r}
+spe_sub <- spe[,full_trait$species]
+spe <- spe_sub
+# mean species cover
+spe.mean <- spe.mean[,full_trait$species]
+```
+
+## Transform species data
+
+```{r}
+spe.log <- log1p(spe)
+spe.log.bray <- vegdist(spe.bray)
+spe.mean.log <- log1p(spe.mean)
+```
+
+## Subset species data
+
+```{r}
+spe_sub <- spe[,full_trait$species]
+full_trait <- full_trait %>% mutate(across(where(is.character), as.factor))
+full_trait <- full_trait %>% column_to_rownames("species")
+```
+
+## Calculate matrices for Rao (diversity) function
+
+```{r}
+# Distance matrix based on a simplified phylogenetic classification
+# Retrieve hierarchical classification from species list
+splist <- c("Acropora cervicornis", "Acropora palmata",         
+"Agaricia agaricites", "Agaricia fragilis",        
+"Agaricia grahamae", "Agaricia humilis",         
+"Agaricia lamarcki", "Agaricia tenuifolia",      
+"Agaricia undata", "Colpophyllia natans",      
+"Dichocoenia stokesii", "Diploria clivosa",         
+"Diploria labyrinthiformis", "Diploria strigosa",        
+"Eusmilia fastigiata", "Favia fragum",             
+"Isophyllastrea rigida", "Isophyllia_sinuosa",       
+"Helioseris cucullata", "Madracis asperula",        
+"Madracis decactis", "Madracis auretenra",       
+"Madracis pharensis", "Manicina areolata",        
+"Meandrina meandrites", "Orbicella annularis",    
+"Montastraea cavernosa", "Orbicella faveolata",    
+"Orbicella franksi", "Mussa angulosa",           
+"Mycetophyllia aliciae", "Mycetophyllia danaana",    
+"Mycetophyllia lamarckiana", "Mycetophyllia reesi",      
+"Porites astreoides", "Porites colonensis",       
+"Porites divaricata", "Porites furcata",          
+"Porites lobata", "Porites porites",          
+"Scolymia cubensis", "Scolymia lacera",          
+"Siderastrea radians", "Siderastrea siderea",      
+"Solenastrea hyades", "Stephanocoenia intersepta")
+get_gbifid(splist)
+spcla <- classification(splist, db = "gbif")
+
+# Compute the distance matrix and the phylogenetic tree
+tr <- class2tree(spcla)
+
+# Convert the tree to a cophenetic matrix
+# constrained between 0 and 1
+phylo.d <- cophenetic(tr$phylo) / 100
+
+# Replace full species names by name codes
+rownames(phylo.d) <- names(spe_sub)
+colnames(phylo.d) <- names(spe_sub)
+
+# Trait matrix
+tra.new <- gowdis(full_trait)
+
+# Test
+spe.rao <- Rao(sample = log1p(t(spe_sub)), dfunc = trait.new, dphyl = phylo.d)
+```
+
+```{r}
+sub_tib <- as_tibble(spe_sub, rownames = "Site.Year")
+sub_tib <- sub_tib %>% separate(Site.Year, c("Site", "Year"))
+
+sub_1999 <- sub_tib %>% filter(Year == 1999) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2000 <- sub_tib %>% filter(Year == 2000) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2001 <- sub_tib %>% filter(Year == 2001) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2002 <- sub_tib %>% filter(Year == 2002) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2003 <- sub_tib %>% filter(Year == 2003) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2004 <- sub_tib %>% filter(Year == 2004) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2005 <- sub_tib %>% filter(Year == 2005) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2006 <- sub_tib %>% filter(Year == 2006) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2007 <- sub_tib %>% filter(Year == 2007) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2008 <- sub_tib %>% filter(Year == 2008) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2009 <- sub_tib %>% filter(Year == 2009) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2010 <- sub_tib %>% filter(Year == 2010) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2011 <- sub_tib %>% filter(Year == 2011) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2012 <- sub_tib %>% filter(Year == 2012) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2013 <- sub_tib %>% filter(Year == 2013) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2008 <- sub_tib %>% filter(Year == 2008) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2009 <- sub_tib %>% filter(Year == 2009) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2010 <- sub_tib %>% filter(Year == 2010) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2011 <- sub_tib %>% filter(Year == 2011) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2012 <- sub_tib %>% filter(Year == 2012) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+sub_2013 <- sub_tib %>% filter(Year == 2013) %>% 
+  select(-c(Year)) %>% column_to_rownames("Site")
+
+
+
+rao.1999 <- Rao(sample = log1p(t(sub_1999)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2000 <- Rao(sample = log1p(t(sub_2000)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2001 <- Rao(sample = log1p(t(sub_2001)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2002 <- Rao(sample = log1p(t(sub_2002)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2003 <- Rao(sample = log1p(t(sub_2003)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2004 <- Rao(sample = log1p(t(sub_2004)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2005 <- Rao(sample = log1p(t(sub_2005)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2006 <- Rao(sample = log1p(t(sub_2006)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2007 <- Rao(sample = log1p(t(sub_2007)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2008 <- Rao(sample = log1p(t(sub_2008)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2009 <- Rao(sample = log1p(t(sub_2009)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2010 <- Rao(sample = log1p(t(sub_2010)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2011 <- Rao(sample = log1p(t(sub_2011)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2012 <- Rao(sample = log1p(t(sub_2012)), 
+                dfunc = tra.new, dphyl = phylo.d)
+rao.2013 <- Rao(sample = log1p(t(sub_2013)), 
+                dfunc = tra.new, dphyl = phylo.d)
+```
+
+
+```{r}
+# Functional Diversity
+alpha_1999 <- as_tibble_row(rao.1999$FD$Alpha)
+alpha_2000 <- as_tibble_row(rao.2000$FD$Alpha)
+alpha_2001 <- as_tibble_row(rao.2001$FD$Alpha)
+alpha_2002 <- as_tibble_row(rao.2002$FD$Alpha)
+alpha_2003 <- as_tibble_row(rao.2003$FD$Alpha)
+alpha_2004 <- as_tibble_row(rao.2004$FD$Alpha)
+alpha_2005 <- as_tibble_row(rao.2005$FD$Alpha)
+alpha_2006 <- as_tibble_row(rao.2006$FD$Alpha)
+alpha_2007 <- as_tibble_row(rao.2007$FD$Alpha)
+alpha_fd2 <- bind_rows("1999"=alpha_1999,"2000"=alpha_2000,
+                       "2001"=alpha_2001,"2002"=alpha_2002,
+                       "2003"=alpha_2003,"2004"=alpha_2004,
+                       "2005"=alpha_2005,"2006"=alpha_2006,
+                       "2007"=alpha_2007,.id="Year")
+alpha_fd2$Gallialm <- NA
+alpha_fd2$bastinor <- NA
+alpha_fd2$tobobe <- NA
+alpha_fd2$zapoeste <- NA
+alpha_fd2$Penivali <- NA
+alpha_full <- full_join(alpha_fd2, alpha_fd)
+
+longer_fd <- pivot_longer(alpha_full, c("zapoeste","isbasti","tobobe",
+                                        "bastinor","caroldan", "Penivali", 
+                                        "iscaagua", "iscolon", "iscristo", 
+                                        "issobut", "Gallialm"),names_to = "Site")
+
+longer_fd <- left_join(longer_fd, site_grps)
+
+# Taxonomic Diversity 
+
+alpha_2008 <- as_tibble_row(rao.2008$TD$Alpha)
+alpha_2009 <- as_tibble_row(rao.2009$TD$Alpha)
+alpha_2010 <- as_tibble_row(rao.2010$TD$Alpha)
+alpha_2011 <- as_tibble_row(rao.2011$TD$Alpha)
+alpha_2012 <- as_tibble_row(rao.2012$TD$Alpha)
+alpha_2013 <- as_tibble_row(rao.2013$TD$Alpha)
+
+alpha_2009$bastinor <- NA
+
+alpha_td <- bind_rows("2008"=alpha_2008,"2009"=alpha_2009,
+                      "2010"=alpha_2010,"2011"=alpha_2011,
+                      "2012"=alpha_2012,"2013"=alpha_2013,
+                      .id="Year")
+
+alpha_1999 <- as_tibble_row(rao.1999$TD$Alpha)
+alpha_2000 <- as_tibble_row(rao.2000$TD$Alpha)
+alpha_2001 <- as_tibble_row(rao.2001$TD$Alpha)
+alpha_2002 <- as_tibble_row(rao.2002$TD$Alpha)
+alpha_2003 <- as_tibble_row(rao.2003$TD$Alpha)
+alpha_2004 <- as_tibble_row(rao.2004$TD$Alpha)
+alpha_2005 <- as_tibble_row(rao.2005$TD$Alpha)
+alpha_2006 <- as_tibble_row(rao.2006$TD$Alpha)
+alpha_2007 <- as_tibble_row(rao.2007$TD$Alpha)
+alpha_td2 <- bind_rows("1999"=alpha_1999,"2000"=alpha_2000,
+                       "2001"=alpha_2001,"2002"=alpha_2002,
+                       "2003"=alpha_2003,"2004"=alpha_2004,
+                       "2005"=alpha_2005,"2006"=alpha_2006,
+                       "2007"=alpha_2007,.id="Year")
+alpha_td2$Gallialm <- NA
+alpha_td2$bastinor <- NA
+alpha_td2$tobobe <- NA
+alpha_td2$zapoeste <- NA
+alpha_td2$Penivali <- NA
+alpha_full2 <- full_join(alpha_td2, alpha_td)
+
+longer_td <- pivot_longer(alpha_full2, c("zapoeste","isbasti","tobobe",
+                                         "bastinor","caroldan", "Penivali", 
+                                         "iscaagua", "iscolon", "iscristo", 
+                                         "issobut", "Gallialm"),names_to = "Site")
+
+longer_td <- left_join(longer_td, site_grps)
+
+longer_td <- longer_td %>% mutate(Taxonomic = value) %>% select(-c(value))
+
+longer_fd <- longer_fd %>% mutate(Functional = value) %>% select(-c(value))
+
+longer_full <- full_join(longer_td, longer_fd)
+# write.csv(longer_full, "TD_FD_Sites")
+```
+

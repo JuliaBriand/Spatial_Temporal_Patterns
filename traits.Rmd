@@ -72,7 +72,6 @@ spe <- read.csv("Species.csv", row.names = 2)
 ## Subset only coral species
 
 ```{r}
-full_trait <- read.csv("Imput.Trait.csv", row.names = 1)
 spe_sub <- spe[,full_trait$species]
 spe <- spe_sub
 # mean species cover
